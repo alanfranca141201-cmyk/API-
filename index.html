@@ -306,7 +306,78 @@
     font-size:15px;font-weight:700;padding:13px 18px;border-radius:12px;cursor:pointer;
   }
   .btn-unlock:active{background:var(--signal-press);}
+
+  /* ---------- Desktop-only elements (hidden by default on mobile) ---------- */
+  .sidebar-brand{display:none;}
+  .btn-desktop-submit{display:none;}
+  .dash-grid{display:block;}
+
+  /* ================================================================
+     Versão desktop — tela cheia com barra lateral fixa
+     ================================================================ */
+  @media (min-width: 900px){
+    #app{
+      max-width:none;
+      flex-direction:row;
+      align-items:stretch;
+    }
+    .topbar{display:none;} /* a marca passa a ficar no topo da barra lateral */
+
+    .bottom-dock{
+      position:fixed;left:0;top:0;bottom:0;right:auto;
+      width:248px;max-width:none;margin:0;
+      background:var(--ink);
+      display:flex;flex-direction:column;
+      padding:22px 0 20px;
+      overflow-y:auto;
+    }
+    .sidebar-brand{
+      display:block;color:var(--paper);padding:0 22px 22px;margin-bottom:8px;
+      border-bottom:1px solid rgba(255,255,255,0.1);
+    }
+    .sidebar-brand .word1,.sidebar-brand .word2{font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;letter-spacing:-0.02em;}
+    .sidebar-brand .word2{color:var(--signal);}
+    .sidebar-brand .tag{font-size:10px;color:#9BA3AB;margin-top:5px;letter-spacing:.04em;text-transform:uppercase;}
+
+    .submit-bar{display:none;} /* no desktop o botão fica embutido no fim do formulário */
+
+    .tabbar-fixed{
+      background:none;border-top:none;padding-bottom:0;
+      flex-direction:column;align-items:stretch;gap:2px;padding:0 12px;
+    }
+    .tabbar-fixed button{
+      flex-direction:row;justify-content:flex-start;gap:10px;
+      padding:11px 12px;border-radius:10px;color:#9BA3AB;font-size:13px;
+    }
+    .tabbar-fixed button:hover{background:rgba(255,255,255,0.06);}
+    .tabbar-fixed button.active{background:rgba(169,195,72,0.16);color:#fff;}
+    .tabbar-fixed button .dot{width:7px;height:7px;}
+
+    main{
+      margin-left:248px;
+      padding:36px 40px 60px;
+      max-width:none;
+    }
+    #view-form{max-width:640px;margin:0 auto;}
+    #view-dashboard #dash-content{max-width:1120px;margin:0 auto;}
+    #view-dashboard #pin-gate{max-width:420px;margin:40px auto 0;}
+    #view-dashboard #dash-loading{max-width:420px;margin:40px auto 0;}
+
+    .btn-desktop-submit{
+      display:block;width:100%;margin-top:6px;box-shadow:0 8px 20px rgba(169,195,72,0.3);
+    }
+
+    .dash-grid{
+      display:grid;grid-template-columns:1fr 1fr;gap:16px;
+      align-items:start;
+    }
+    .dash-grid .card{margin-bottom:0;}
+
+    .stat-grid{grid-template-columns:1fr 1fr 1fr;}
+    .stat-card.wide{grid-column:auto;}
+  }
 </style>
+
 </head>
 <body>
 <div id="app">
@@ -426,6 +497,8 @@
       </div>
 
       <div class="note-banner">Ao enviar, a venda vai direto para a planilha em tempo real. Se a conexão falhar, um CSV de backup baixa automaticamente no celular.</div>
+
+      <button type="button" class="btn-primary btn-desktop-submit" id="btn-submit-desktop">Fechar venda</button>
     </section>
 
     <!-- ===================== DASHBOARD VIEW ===================== -->
@@ -456,30 +529,32 @@
           </div>
         </div>
 
-        <div class="card">
-          <div class="section-label">Clientes novos x recorrentes</div>
-          <div id="rank-tipo"></div>
-        </div>
+        <div class="dash-grid">
+          <div class="card">
+            <div class="section-label">Clientes novos x recorrentes</div>
+            <div id="rank-tipo"></div>
+          </div>
 
-        <div class="card">
-          <div class="section-label">Faturamento por segmento</div>
-          <div id="rank-segmento"></div>
-          <div class="champion" id="champ-segmento" style="display:none;"></div>
-        </div>
+          <div class="card">
+            <div class="section-label">Faturamento por segmento</div>
+            <div id="rank-segmento"></div>
+            <div class="champion" id="champ-segmento" style="display:none;"></div>
+          </div>
 
-        <div class="card">
-          <div class="section-label">Faturamento por origem</div>
-          <div id="rank-origem"></div>
-        </div>
+          <div class="card">
+            <div class="section-label">Faturamento por origem</div>
+            <div id="rank-origem"></div>
+          </div>
 
-        <div class="card">
-          <div class="section-label">Faturamento por produto</div>
-          <div id="rank-produto"></div>
-        </div>
+          <div class="card">
+            <div class="section-label">Faturamento por produto</div>
+            <div id="rank-produto"></div>
+          </div>
 
-        <div class="card">
-          <div class="section-label">Forma de retirada</div>
-          <div id="rank-retirada"></div>
+          <div class="card">
+            <div class="section-label">Forma de retirada</div>
+            <div id="rank-retirada"></div>
+          </div>
         </div>
 
         <div class="card">
@@ -506,6 +581,11 @@
   </main>
 
   <div class="bottom-dock">
+    <div class="sidebar-brand">
+      <div><span class="word1">Análise MKT</span> <span class="word2">TEDRAS</span></div>
+      <div class="tag">Registro comercial de campo</div>
+    </div>
+
     <div class="submit-bar" id="submit-bar">
       <div class="btn-row">
         <button class="btn-primary" id="btn-submit">Fechar venda</button>
@@ -861,10 +941,15 @@
     $("review-overlay").classList.add("show");
   }
 
-  $("btn-submit").addEventListener("click", ()=>{
+  function handleSubmitClick(){
     if(!validate()){
-      $("btn-submit").textContent = "Preencha os campos obrigatórios";
-      setTimeout(()=>{ $("btn-submit").textContent = "Fechar venda"; }, 1600);
+      const msg = "Preencha os campos obrigatórios";
+      $("btn-submit").textContent = msg;
+      $("btn-submit-desktop").textContent = msg;
+      setTimeout(()=>{
+        $("btn-submit").textContent = "Fechar venda";
+        $("btn-submit-desktop").textContent = "Fechar venda";
+      }, 1600);
       return;
     }
     const valor = parseFloat($("valor").value);
@@ -884,7 +969,9 @@
       ts: Date.now()
     };
     openReview(currentEntry);
-  });
+  }
+  $("btn-submit").addEventListener("click", handleSubmitClick);
+  $("btn-submit-desktop").addEventListener("click", handleSubmitClick);
 
   $("btn-review-back").addEventListener("click", ()=>{
     $("review-overlay").classList.remove("show");
@@ -944,6 +1031,8 @@
     document.querySelectorAll(".field").forEach(f=>f.classList.remove("has-error"));
     $("btn-submit").disabled = false;
     $("btn-submit").textContent = "Fechar venda";
+    $("btn-submit-desktop").disabled = false;
+    $("btn-submit-desktop").textContent = "Fechar venda";
     window.scrollTo({top:0, behavior:"smooth"});
   }
 
