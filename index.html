@@ -339,7 +339,7 @@
     .sidebar-brand .word2{color:var(--signal);}
     .sidebar-brand .tag{font-size:10px;color:#9BA3AB;margin-top:5px;letter-spacing:.04em;text-transform:uppercase;}
 
-    .submit-bar{display:none;} /* no desktop o botão fica embutido no fim do formulário */
+    .submit-bar{display:none !important;} /* no desktop o botão fica embutido no fim do formulário — !important necessário pois o JS de troca de aba define display inline */
 
     .tabbar-fixed{
       background:none;border-top:none;padding-bottom:0;
@@ -398,9 +398,8 @@
         <div class="row-2">
           <div class="field" id="f-vendedor">
             <label for="vendedor">Vendedor</label>
-            <input type="text" id="vendedor" placeholder="Seu nome" autocomplete="off" list="vendedor-list">
-            <datalist id="vendedor-list"></datalist>
-            <div class="error">Informe o nome do vendedor.</div>
+            <select id="vendedor"></select>
+            <div class="error">Selecione o vendedor.</div>
           </div>
           <div class="field" id="f-data">
             <label for="data">Data</label>
@@ -531,6 +530,12 @@
 
         <div class="dash-grid">
           <div class="card">
+            <div class="section-label">Faturamento por vendedor</div>
+            <div id="rank-vendedor"></div>
+            <div class="champion" id="champ-vendedor" style="display:none;"></div>
+          </div>
+
+          <div class="card">
             <div class="section-label">Clientes novos x recorrentes</div>
             <div id="rank-tipo"></div>
           </div>
@@ -554,6 +559,21 @@
           <div class="card">
             <div class="section-label">Forma de retirada</div>
             <div id="rank-retirada"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-label">Vendas por faixa de valor</div>
+            <div id="rank-faixa"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-label">Vendas por estado</div>
+            <div id="rank-estado"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-label">Top cidades</div>
+            <div id="rank-cidade"></div>
           </div>
         </div>
 
@@ -628,6 +648,7 @@
   "use strict";
 
   // ---------------- Reference lists (mirrors the spreadsheet's "Listas" tab) ----------------
+  const VENDEDORES = ["Anna","Americo","Rebeca","Leonardo","Maisa","Lene"];
   const ESTADOS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
   const SEGMENTOS = ["Condomínio","Indústrias","Distribuidor","Bar/Restaurante","Igreja","Empresa","Consumidor final","Outro"];
   const ORIGENS = ["Google/site/e-mail","Anúncio promocional","Indicação","Cliente recorrente","OLX","Prospecção individual","Porta","Outro"];
@@ -657,6 +678,7 @@
     }[c]));
   }
 
+  fillSelect($("vendedor"), VENDEDORES, "Selecione o vendedor");
   fillSelect($("estado"), ESTADOS, "Selecione");
   fillSelect($("segmento"), SEGMENTOS, "Selecione o segmento");
   fillSelect($("origem"), ORIGENS, "Selecione a origem");
@@ -806,7 +828,10 @@
       prodCount:{...byProd}, prodRevenue:{...byProd},
       faixaCount:{...byFaixa},
       tipoCount:{...byTipo}, tipoRevenue:{...byTipoRev},
-      retiradaCount:{...byRetirada}
+      retiradaCount:{...byRetirada},
+      vendedorCount:{}, vendedorRevenue:{},
+      estadoCount:{}, estadoRevenue:{},
+      cidadeCount:{}, cidadeRevenue:{}
     };
   }
 
@@ -825,6 +850,12 @@
       summary.tipoCount[entry.tipo] = (summary.tipoCount[entry.tipo]||0) + 1;
       summary.tipoRevenue[entry.tipo] = (summary.tipoRevenue[entry.tipo]||0) + entry.valor;
       summary.retiradaCount[entry.retirada] = (summary.retiradaCount[entry.retirada]||0) + 1;
+      summary.vendedorRevenue[entry.vendedor] = (summary.vendedorRevenue[entry.vendedor]||0) + entry.valor;
+      summary.vendedorCount[entry.vendedor] = (summary.vendedorCount[entry.vendedor]||0) + 1;
+      summary.estadoRevenue[entry.estado] = (summary.estadoRevenue[entry.estado]||0) + entry.valor;
+      summary.estadoCount[entry.estado] = (summary.estadoCount[entry.estado]||0) + 1;
+      summary.cidadeRevenue[entry.cidade] = (summary.cidadeRevenue[entry.cidade]||0) + entry.valor;
+      summary.cidadeCount[entry.cidade] = (summary.cidadeCount[entry.cidade]||0) + 1;
     });
     return summary;
   }
@@ -996,7 +1027,6 @@
     $("review-overlay").classList.remove("show");
     lastVendorName = entry.vendedor;
     showStamp(entry, !ok);
-    loadVendorSuggestions();
   });
 
   function showStamp(entry, showCsvNote){
@@ -1037,19 +1067,24 @@
   }
 
   // ---------------- Dashboard rendering ----------------
-  function rankRows(container, countMap, revenueMap){
+  function rankRows(container, countMap, revenueMap, opts){
+    opts = opts || {};
     const showRevenue = !!revenueMap;
-    const items = Object.keys(countMap)
-      .map(k => ({name:k, count: countMap[k]||0, revenue: (revenueMap ? revenueMap[k] : 0) || 0}))
-      .filter(it => it.count > 0)
-      .sort((a,b)=> showRevenue ? (b.revenue - a.revenue) : (b.count - a.count));
+    let items = Object.keys(countMap)
+      .map(k => ({name:k, count: countMap[k]||0, revenue: (revenueMap ? revenueMap[k] : 0) || 0}));
+    if(!opts.showAll) items = items.filter(it => it.count > 0);
+    if(!opts.naturalOrder){
+      items = items.sort((a,b)=> showRevenue ? (b.revenue - a.revenue) : (b.count - a.count));
+    }
+    const totalItems = items.length;
+    if(opts.limit) items = items.slice(0, opts.limit);
 
     container.innerHTML = "";
     if(items.length === 0){
       container.innerHTML = '<div class="empty-state" style="padding:14px 0;">Sem vendas registradas ainda nesta categoria.</div>';
       return null;
     }
-    const maxVal = showRevenue ? (items[0].revenue || 1) : (items[0].count || 1);
+    const maxVal = Math.max(1, ...items.map(it => showRevenue ? it.revenue : it.count));
     items.forEach(it=>{
       const row = document.createElement("div");
       row.className = "rank-item";
@@ -1062,7 +1097,14 @@
       `;
       container.appendChild(row);
     });
-    return items[0];
+    if(opts.limit && totalItems > opts.limit){
+      const more = document.createElement("div");
+      more.className = "hint";
+      more.style.marginTop = "8px";
+      more.textContent = "+ " + (totalItems - opts.limit) + " outra" + (totalItems - opts.limit === 1 ? "" : "s") + " cidade" + (totalItems - opts.limit === 1 ? "" : "s") + " com vendas";
+      container.appendChild(more);
+    }
+    return items.slice().sort((a,b)=>b.revenue-a.revenue)[0];
   }
 
   function timeAgo(ts){
@@ -1087,6 +1129,15 @@
     $("stat-count").textContent = summary.totalCount;
     $("stat-ticket").textContent = fmtBRLShort(summary.totalCount ? summary.totalRevenue/summary.totalCount : 0);
 
+    const topVendedor = rankRows($("rank-vendedor"), summary.vendedorCount, summary.vendedorRevenue);
+    const champVendedorEl = $("champ-vendedor");
+    if(topVendedor){
+      champVendedorEl.style.display = "flex";
+      champVendedorEl.innerHTML = `🏆 <span><span class="k">Destaque do período:</span> ${escapeHtml(topVendedor.name)}</span>`;
+    } else {
+      champVendedorEl.style.display = "none";
+    }
+
     rankRows($("rank-tipo"), summary.tipoCount, summary.tipoRevenue);
 
     const topSeg = rankRows($("rank-segmento"), summary.segCount, summary.segRevenue);
@@ -1100,6 +1151,9 @@
     rankRows($("rank-origem"), summary.oriCount, summary.oriRevenue);
     rankRows($("rank-produto"), summary.prodCount, summary.prodRevenue);
     rankRows($("rank-retirada"), summary.retiradaCount);
+    rankRows($("rank-faixa"), summary.faixaCount, null, {naturalOrder:true, showAll:true});
+    rankRows($("rank-estado"), summary.estadoCount, summary.estadoRevenue);
+    rankRows($("rank-cidade"), summary.cidadeCount, summary.cidadeRevenue, {limit:10});
 
     const recentEl = $("recent-list");
     recentEl.innerHTML = "";
@@ -1189,24 +1243,6 @@
     btn.textContent = originalText;
   }
   $("btn-export").addEventListener("click", exportToCSV);
-
-  async function loadVendorSuggestions(){
-    const db = await loadDB();
-    const entries = db.entries;
-
-    // popula sugestões de nomes já usados, para reduzir erros de digitação
-    const nomes = [...new Set(entries.map(e => e.vendedor).filter(Boolean))].sort();
-    const list = $("vendedor-list");
-    list.innerHTML = "";
-    nomes.forEach(n=>{
-      const o = document.createElement("option");
-      o.value = n;
-      list.appendChild(o);
-    });
-  }
-
-  // initial badge fetch (lightweight, does not expose dashboard results before PIN unlock)
-  loadVendorSuggestions();
 
 })();
 </script>
