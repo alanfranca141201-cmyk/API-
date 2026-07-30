@@ -215,6 +215,22 @@
   .rank-bar{height:8px;border-radius:999px;background:var(--paper);border:1px solid var(--line);overflow:hidden;}
   .rank-bar > div{height:100%;background:var(--signal);border-radius:999px;}
 
+  .period-filter{
+    display:flex;gap:8px;overflow-x:auto;margin-bottom:14px;padding-bottom:2px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;
+  }
+  .period-filter::-webkit-scrollbar{display:none;}
+  .period-btn{
+    flex:0 0 auto;padding:9px 14px;border-radius:999px;border:1.5px solid var(--line);
+    background:var(--card);color:var(--ink-2);font-size:13px;font-weight:600;
+    font-family:inherit;cursor:pointer;white-space:nowrap;
+  }
+  .period-btn.selected{background:var(--ink);border-color:var(--ink);color:#fff;}
+
+  .chart-wrap svg{display:block;width:100%;height:auto;}
+  #chart-trend{margin-bottom:0;}
+  #chart-segmento, #chart-origem{margin-bottom:14px;}
+
   .champion{
     display:flex;align-items:center;gap:10px;
     background:var(--success-bg);border:1px solid #BFE3CC;color:var(--success);
@@ -278,6 +294,13 @@
     padding:20px;
   }
   #sale-detail-overlay.show{opacity:1;pointer-events:auto;}
+  #vendor-detail-overlay{
+    position:fixed;inset:0;background:rgba(27,31,35,0.92);
+    display:flex;align-items:center;justify-content:center;
+    z-index:45;opacity:0;pointer-events:none;transition:opacity .18s ease;
+    padding:20px;
+  }
+  #vendor-detail-overlay.show{opacity:1;pointer-events:auto;}
   .review-card{width:100%;max-width:440px;max-height:82vh;overflow-y:auto;margin-bottom:0;}
   .review-row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;}
   .review-row:last-child{border-bottom:none;}
@@ -452,21 +475,6 @@
           </div>
           <div class="error">Selecione se o cliente é novo ou recorrente.</div>
         </div>
-        <div class="field" id="f-retirada">
-          <label>Retirada</label>
-          <div class="dropdown" id="dropdown-retirada">
-            <button type="button" class="dropdown-trigger" id="retirada-trigger">
-              <span id="retirada-trigger-text">Selecione a forma de retirada</span>
-              <span class="chevron">▾</span>
-            </button>
-            <div class="dropdown-panel" id="retirada-panel">
-              <button type="button" class="dropdown-option" data-val="Retirou por transportadora">Retirou por transportadora</button>
-              <button type="button" class="dropdown-option" data-val="Levou em carro próprio">Levou em carro próprio</button>
-              <button type="button" class="dropdown-option" data-val="Usou frete da loja">Usou frete da loja</button>
-            </div>
-          </div>
-          <div class="error">Selecione a forma de retirada.</div>
-        </div>
         <div class="field" id="f-presencial">
           <label>Cliente esteve presencialmente na loja?</label>
           <div class="toggle-row" id="toggle-presencial">
@@ -523,6 +531,14 @@
       <div id="dash-loading" class="empty-state" style="display:none;">Carregando painel…</div>
       <div id="dash-content" style="display:none;">
 
+        <div class="period-filter" id="period-filter">
+          <button type="button" class="period-btn" data-periodo="hoje">Hoje</button>
+          <button type="button" class="period-btn" data-periodo="semana">Esta semana</button>
+          <button type="button" class="period-btn selected" data-periodo="mes">Este mês</button>
+          <button type="button" class="period-btn" data-periodo="6meses">6 meses</button>
+          <button type="button" class="period-btn" data-periodo="1ano">1 ano</button>
+        </div>
+
         <div class="stat-grid">
           <div class="stat-card wide">
             <div class="label">Faturamento total</div>
@@ -536,6 +552,11 @@
             <div class="label">Ticket médio</div>
             <div class="value" id="stat-ticket">R$ 0</div>
           </div>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Faturamento ao longo do tempo</div>
+          <div id="chart-trend"></div>
         </div>
 
         <div class="dash-grid">
@@ -552,23 +573,20 @@
 
           <div class="card">
             <div class="section-label">Faturamento por segmento</div>
+            <div id="chart-segmento"></div>
             <div id="rank-segmento"></div>
             <div class="champion" id="champ-segmento" style="display:none;"></div>
           </div>
 
           <div class="card">
             <div class="section-label">Faturamento por origem</div>
+            <div id="chart-origem"></div>
             <div id="rank-origem"></div>
           </div>
 
           <div class="card">
             <div class="section-label">Faturamento por produto</div>
             <div id="rank-produto"></div>
-          </div>
-
-          <div class="card">
-            <div class="section-label">Forma de retirada</div>
-            <div id="rank-retirada"></div>
           </div>
 
           <div class="card">
@@ -661,6 +679,56 @@
     </div>
   </div>
 
+  <div id="vendor-detail-overlay">
+    <div class="card review-card">
+      <div class="section-label" id="vd-name">Vendedor</div>
+
+      <div class="stat-grid" style="margin-bottom:16px;">
+        <div class="stat-card wide">
+          <div class="label">Faturamento total</div>
+          <div class="value" id="vd-total">R$ 0,00</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Vendas</div>
+          <div class="value" id="vd-count">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Ticket médio</div>
+          <div class="value" id="vd-ticket">R$ 0</div>
+        </div>
+      </div>
+
+      <div class="section-label">Clientes novos x recorrentes</div>
+      <div id="vd-rank-tipo"></div>
+
+      <div class="section-label" style="margin-top:14px;">Faixa de valor</div>
+      <div id="vd-rank-faixa"></div>
+
+      <div class="section-label" style="margin-top:14px;">Segmento</div>
+      <div id="vd-rank-segmento"></div>
+
+      <div class="section-label" style="margin-top:14px;">Origem</div>
+      <div id="vd-rank-origem"></div>
+
+      <div class="section-label" style="margin-top:14px;">Produto</div>
+      <div id="vd-rank-produto"></div>
+
+      <div class="section-label" style="margin-top:14px;">Cliente esteve na loja?</div>
+      <div id="vd-rank-presencial"></div>
+
+      <div class="section-label" style="margin-top:14px;">Estado</div>
+      <div id="vd-rank-estado"></div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button type="button" class="toggle-btn" id="btn-vendor-export-txt">⬇ Resumo (texto)</button>
+        <button type="button" class="toggle-btn" id="btn-vendor-export-csv">⬇ Vendas (CSV)</button>
+      </div>
+      <div class="btn-row" style="margin-top:10px;">
+        <button type="button" class="btn-primary" id="btn-vendor-detail-close" style="box-shadow:none;">Fechar</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -674,7 +742,6 @@
   const ORIGENS = ["Google/site/e-mail","Anúncio promocional","Indicação","Cliente recorrente","Prospecção individual","Porta","Outro"];
   const PRODUTOS = ["Móvel de plástico tradicional","Móvel de plástico Premium","Linha de madeira","Linha industrial"];
   const FAIXAS = ["Até R$ 500","R$ 500–2.000","R$ 2.000–5.000","R$ 5.000–10.000","Acima de R$ 10.000"];
-  const RETIRADAS = ["Retirou por transportadora","Levou em carro próprio","Usou frete da loja"];
 
   function fillSelect(sel, options, placeholder){
     sel.innerHTML = "";
@@ -713,6 +780,133 @@
 
   const fmtBRL = n => "R$ " + Number(n||0).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
   const fmtBRLShort = n => "R$ " + Number(n||0).toLocaleString("pt-BR", {maximumFractionDigits:0});
+
+  // ---------------- Filtro de período do painel ----------------
+  let periodoSelecionado = "mes";
+
+  function inicioDoPeriodo(periodo){
+    const agora = new Date();
+    const hoje0h = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    if(periodo === "hoje") return hoje0h;
+    if(periodo === "semana"){
+      const diaSemana = (hoje0h.getDay() + 6) % 7; // 0 = segunda
+      const inicio = new Date(hoje0h);
+      inicio.setDate(inicio.getDate() - diaSemana);
+      return inicio;
+    }
+    if(periodo === "mes") return new Date(agora.getFullYear(), agora.getMonth(), 1);
+    if(periodo === "6meses"){
+      const d = new Date(hoje0h);
+      d.setMonth(d.getMonth() - 6);
+      return d;
+    }
+    if(periodo === "1ano"){
+      const d = new Date(hoje0h);
+      d.setFullYear(d.getFullYear() - 1);
+      return d;
+    }
+    return new Date(0);
+  }
+
+  function filtrarPorPeriodo(entries, periodo){
+    const inicio = inicioDoPeriodo(periodo).getTime();
+    return entries.filter(e => e.ts >= inicio);
+  }
+
+  // ---------------- Gráficos (SVG simples, sem dependências) ----------------
+  const MESES_ABREV = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+
+  function computeTrendBuckets(entries, periodo){
+    const inicio = inicioDoPeriodo(periodo);
+    const fim = new Date();
+    const spanDias = Math.max(0.1, (fim - inicio) / 86400000);
+    let granularidade;
+    if(spanDias <= 1.5) granularidade = "hora";
+    else if(spanDias <= 14) granularidade = "dia";
+    else if(spanDias <= 90) granularidade = "semana";
+    else granularidade = "mes";
+
+    function chave(d){
+      if(granularidade === "hora") return d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate()+"-"+d.getHours();
+      if(granularidade === "dia") return d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate();
+      if(granularidade === "semana"){
+        const diaSemana = (d.getDay()+6)%7;
+        const seg = new Date(d.getFullYear(), d.getMonth(), d.getDate()-diaSemana);
+        return "s"+seg.getFullYear()+"-"+seg.getMonth()+"-"+seg.getDate();
+      }
+      return d.getFullYear()+"-"+d.getMonth();
+    }
+    function rotulo(d){
+      if(granularidade === "hora") return d.getHours()+"h";
+      if(granularidade === "dia") return d.getDate()+"/"+(d.getMonth()+1);
+      if(granularidade === "semana") return d.getDate()+"/"+(d.getMonth()+1);
+      return MESES_ABREV[d.getMonth()];
+    }
+
+    const buckets = {};
+    entries.forEach(e=>{
+      const d = new Date(e.ts);
+      const k = chave(d);
+      if(!buckets[k]) buckets[k] = { label: rotulo(d), sortTs: d.getTime(), total: 0 };
+      buckets[k].total += e.valor;
+    });
+    return Object.values(buckets).sort((a,b)=>a.sortTs-b.sortTs);
+  }
+
+  function renderTrendChart(container, buckets){
+    if(buckets.length === 0){
+      container.innerHTML = '<div class="empty-state" style="padding:14px 0;">Sem vendas registradas neste período.</div>';
+      return;
+    }
+    const w = 320, h = 130, padBottom = 18;
+    const maxVal = Math.max(1, ...buckets.map(b=>b.total));
+    const slot = w / buckets.length;
+    const barWidth = Math.max(2, slot - 4);
+    let bars = "";
+    buckets.forEach((b,i)=>{
+      const barH = Math.max(2, (b.total/maxVal) * (h - padBottom - 6));
+      const x = i*slot + (slot-barWidth)/2;
+      const y = (h - padBottom) - barH;
+      bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${barH.toFixed(1)}" rx="2" style="fill:var(--signal)"><title>${escapeHtml(b.label)}: ${escapeHtml(fmtBRLShort(b.total))}</title></rect>`;
+    });
+    let labels = "";
+    if(buckets.length <= 14){
+      buckets.forEach((b,i)=>{
+        const x = i*slot + slot/2;
+        labels += `<text x="${x.toFixed(1)}" y="${h-4}" font-size="8" text-anchor="middle" style="fill:var(--slate)">${escapeHtml(b.label)}</text>`;
+      });
+    }
+    container.innerHTML = `<div class="chart-wrap"><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="height:120px;">${bars}${labels}</svg></div>`;
+  }
+
+  function truncarTexto(s, n){
+    s = String(s);
+    return s.length > n ? s.slice(0, n-1) + "…" : s;
+  }
+
+  function renderHBarChart(container, countMap, revenueMap){
+    const items = Object.keys(countMap)
+      .map(k => ({name:k, value: (revenueMap[k]||0)}))
+      .filter(it => it.value > 0)
+      .sort((a,b)=>b.value-a.value)
+      .slice(0, 6);
+    if(items.length === 0){ container.innerHTML = ""; return; }
+    const rowH = 22, gap = 8, w = 320;
+    const h = items.length * (rowH+gap) - gap;
+    const maxVal = Math.max(1, ...items.map(it=>it.value));
+    let rows = "";
+    items.forEach((it,i)=>{
+      const y = i*(rowH+gap);
+      const barMaxW = w - 96;
+      const barW = Math.max(3, (it.value/maxVal) * barMaxW);
+      rows += `
+        <text x="0" y="${(y+rowH/2+3).toFixed(1)}" font-size="10" style="fill:var(--ink-2);font-weight:600"><title>${escapeHtml(it.name)}</title>${escapeHtml(truncarTexto(it.name, 15))}</text>
+        <rect x="82" y="${(y+3).toFixed(1)}" width="${barW.toFixed(1)}" height="${(rowH-6).toFixed(1)}" rx="4" style="fill:var(--signal)"></rect>
+        <text x="${(82+barW+6).toFixed(1)}" y="${(y+rowH/2+3).toFixed(1)}" font-size="9" style="fill:var(--slate)">${escapeHtml(fmtBRLShort(it.value))}</text>
+      `;
+    });
+    container.innerHTML = `<div class="chart-wrap"><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="height:${h}px;">${rows}</svg></div>`;
+  }
 
   // ---------------- Máscara automática do campo Valor (evita erro de ponto/vírgula) ----------------
   function formatCentavos(digits){
@@ -763,33 +957,6 @@
       faixaSelecionada = btn.dataset.val;
       $("f-faixa").classList.remove("has-error");
     });
-  });
-
-  // ---------------- Retirada dropdown ----------------
-  let retiradaSelecionada = null;
-  const retiradaDropdown = $("dropdown-retirada");
-  const retiradaTrigger = $("retirada-trigger");
-  const retiradaTriggerText = $("retirada-trigger-text");
-
-  retiradaTrigger.addEventListener("click", (e)=>{
-    e.stopPropagation();
-    retiradaDropdown.classList.toggle("open");
-  });
-
-  document.querySelectorAll("#retirada-panel .dropdown-option").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      document.querySelectorAll("#retirada-panel .dropdown-option").forEach(b=>b.classList.remove("selected"));
-      btn.classList.add("selected");
-      retiradaSelecionada = btn.dataset.val;
-      retiradaTriggerText.textContent = retiradaSelecionada;
-      retiradaTrigger.classList.add("has-value");
-      retiradaDropdown.classList.remove("open");
-      $("f-retirada").classList.remove("has-error");
-    });
-  });
-
-  document.addEventListener("click", (e)=>{
-    if(!retiradaDropdown.contains(e.target)) retiradaDropdown.classList.remove("open");
   });
 
   // ---------------- Dashboard access PIN ----------------
@@ -854,6 +1021,16 @@
   });
   $("btn-refresh").addEventListener("click", loadDashboard);
 
+  document.querySelectorAll("#period-filter .period-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      if(btn.classList.contains("selected")) return;
+      document.querySelectorAll("#period-filter .period-btn").forEach(b=>b.classList.remove("selected"));
+      btn.classList.add("selected");
+      periodoSelecionado = btn.dataset.periodo;
+      loadDashboard();
+    });
+  });
+
   // ---------------- Google Sheets como banco de dados ----------------
   // Cole aqui a URL do seu Apps Script (veja o guia de configuração).
   // Enquanto não configurar, o app funciona só localmente (CSV sempre baixa, mas o painel fica vazio).
@@ -864,12 +1041,11 @@
   }
 
   function emptySummary(){
-    const bySeg = {}, byOri = {}, byProd = {}, byFaixa = {}, byTipo = {Novo:0, Recorrente:0}, byTipoRev = {Novo:0, Recorrente:0}, byRetirada = {}, byPresencial = {};
+    const bySeg = {}, byOri = {}, byProd = {}, byFaixa = {}, byTipo = {Novo:0, Recorrente:0}, byTipoRev = {Novo:0, Recorrente:0}, byPresencial = {};
     SEGMENTOS.forEach(s=>bySeg[s]=0);
     ORIGENS.forEach(s=>byOri[s]=0);
     PRODUTOS.forEach(s=>byProd[s]=0);
     FAIXAS.forEach(s=>byFaixa[s]=0);
-    RETIRADAS.forEach(s=>byRetirada[s]=0);
     return {
       totalRevenue:0, totalCount:0,
       segCount:{...bySeg}, segRevenue:{...bySeg},
@@ -877,7 +1053,6 @@
       prodCount:{...byProd}, prodRevenue:{...byProd},
       faixaCount:{...byFaixa},
       tipoCount:{...byTipo}, tipoRevenue:{...byTipoRev},
-      retiradaCount:{...byRetirada},
       presencialCount:{...byPresencial},
       vendedorCount:{}, vendedorRevenue:{},
       estadoCount:{}, estadoRevenue:{}
@@ -898,7 +1073,6 @@
       summary.faixaCount[entry.faixa] = (summary.faixaCount[entry.faixa]||0) + 1;
       summary.tipoCount[entry.tipo] = (summary.tipoCount[entry.tipo]||0) + 1;
       summary.tipoRevenue[entry.tipo] = (summary.tipoRevenue[entry.tipo]||0) + entry.valor;
-      summary.retiradaCount[entry.retirada] = (summary.retiradaCount[entry.retirada]||0) + 1;
       summary.presencialCount[entry.presencial] = (summary.presencialCount[entry.presencial]||0) + 1;
       summary.vendedorRevenue[entry.vendedor] = (summary.vendedorRevenue[entry.vendedor]||0) + entry.valor;
       summary.vendedorCount[entry.vendedor] = (summary.vendedorCount[entry.vendedor]||0) + 1;
@@ -921,7 +1095,7 @@
           vendedor: r["Vendedor"] || "", data: r["Data"] || "", pedido: r["Pedido"] || "",
           valor: Number(r["Valor"]) || 0, faixa: r["Faixa"] || "",
           estado: r["Estado"] || "", tipo: r["Tipo"] || "", segmento: r["Segmento"] || "",
-          origem: r["Origem"] || "", produto: r["Produto"] || "", retirada: r["Retirada"] || "",
+          origem: r["Origem"] || "", produto: r["Produto"] || "",
           presencial: r["Presencial"] || "",
           ts: isNaN(parsedTs) ? Date.now() : parsedTs
         };
@@ -975,7 +1149,6 @@
     setError("f-produto", !produto); if(!produto) ok = false;
     setError("f-tipo", !tipoSelecionado); if(!tipoSelecionado) ok = false;
     setError("f-faixa", !faixaSelecionada); if(!faixaSelecionada) ok = false;
-    setError("f-retirada", !retiradaSelecionada); if(!retiradaSelecionada) ok = false;
     setError("f-presencial", !presencialSelecionado); if(!presencialSelecionado) ok = false;
 
     if(!ok){
@@ -1002,7 +1175,6 @@
       ["Segmento", entry.segmento],
       ["Origem", entry.origem],
       ["Produto", entry.produto],
-      ["Retirada", entry.retirada],
       ["Presencial", entry.presencial]
     ];
   }
@@ -1044,7 +1216,6 @@
       origem: $("origem").value,
       produto: $("produto").value,
       faixa: faixaSelecionada,
-      retirada: retiradaSelecionada,
       presencial: presencialSelecionado,
       ts: Date.now()
     };
@@ -1074,6 +1245,114 @@
   });
   $("sale-detail-overlay").addEventListener("click", (e)=>{
     if(e.target.id === "sale-detail-overlay") $("sale-detail-overlay").classList.remove("show");
+  });
+
+  const PERIODO_LABEL = { hoje:"Hoje", semana:"Esta semana", mes:"Este mês", "6meses":"Últimos 6 meses", "1ano":"Último 1 ano" };
+
+  let vendorDetailNome = null;
+  let vendorDetailEntries = [];
+
+  function openVendorDetail(nome, allEntries){
+    const entriesDoVendedor = allEntries.filter(e => e.vendedor === nome);
+    const s = computeSummaryFromEntries(entriesDoVendedor);
+    vendorDetailNome = nome;
+    vendorDetailEntries = entriesDoVendedor;
+
+    $("vd-name").textContent = nome;
+    $("vd-total").textContent = fmtBRL(s.totalRevenue);
+    $("vd-count").textContent = s.totalCount;
+    $("vd-ticket").textContent = fmtBRLShort(s.totalCount ? s.totalRevenue/s.totalCount : 0);
+
+    rankRows($("vd-rank-tipo"), s.tipoCount, s.tipoRevenue);
+    rankRows($("vd-rank-faixa"), s.faixaCount, null, {naturalOrder:true, showAll:true});
+    rankRows($("vd-rank-segmento"), s.segCount, s.segRevenue);
+    rankRows($("vd-rank-origem"), s.oriCount, s.oriRevenue);
+    rankRows($("vd-rank-produto"), s.prodCount, s.prodRevenue);
+    rankRows($("vd-rank-presencial"), s.presencialCount);
+    rankRows($("vd-rank-estado"), s.estadoCount, s.estadoRevenue);
+
+    $("vendor-detail-overlay").classList.add("show");
+  }
+  $("btn-vendor-detail-close").addEventListener("click", ()=>{
+    $("vendor-detail-overlay").classList.remove("show");
+  });
+
+  function formatarSecaoTexto(countMap, revenueMap, opts){
+    opts = opts || {};
+    const showRevenue = !!revenueMap;
+    let items = Object.keys(countMap).map(k => ({name:k, count: countMap[k]||0, revenue: (revenueMap?revenueMap[k]:0)||0}));
+    if(!opts.showAll) items = items.filter(it=>it.count>0);
+    if(!opts.naturalOrder) items = items.sort((a,b)=> showRevenue ? b.revenue-a.revenue : b.count-a.count);
+    if(items.length === 0) return "  (sem vendas)";
+    return items.map(it=>{
+      const qtd = it.count + (it.count===1 ? " venda" : " vendas");
+      const val = showRevenue ? (qtd + " · " + fmtBRL(it.revenue)) : qtd;
+      return "  " + it.name + ": " + val;
+    }).join("\n");
+  }
+
+  function buildVendorTextReport(nome, periodoLabel, s){
+    return [
+      "RELATÓRIO DE VENDAS — " + nome,
+      "Período: " + periodoLabel,
+      "Gerado em: " + new Date().toLocaleString("pt-BR"),
+      "",
+      "RESUMO",
+      "Faturamento total: " + fmtBRL(s.totalRevenue),
+      "Vendas: " + s.totalCount,
+      "Ticket médio: " + fmtBRL(s.totalCount ? s.totalRevenue/s.totalCount : 0),
+      "",
+      "CLIENTES NOVOS X RECORRENTES",
+      formatarSecaoTexto(s.tipoCount, s.tipoRevenue),
+      "",
+      "FAIXA DE VALOR",
+      formatarSecaoTexto(s.faixaCount, null, {naturalOrder:true, showAll:true}),
+      "",
+      "SEGMENTO",
+      formatarSecaoTexto(s.segCount, s.segRevenue),
+      "",
+      "ORIGEM",
+      formatarSecaoTexto(s.oriCount, s.oriRevenue),
+      "",
+      "PRODUTO",
+      formatarSecaoTexto(s.prodCount, s.prodRevenue),
+      "",
+      "ESTEVE NA LOJA?",
+      formatarSecaoTexto(s.presencialCount),
+      "",
+      "ESTADO",
+      formatarSecaoTexto(s.estadoCount, s.estadoRevenue),
+    ].join("\n");
+  }
+
+  function downloadText(text, filename){
+    const blob = new Blob([text], {type:"text/plain;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  $("btn-vendor-export-txt").addEventListener("click", ()=>{
+    if(!vendorDetailNome) return;
+    const s = computeSummaryFromEntries(vendorDetailEntries);
+    const periodoLabel = PERIODO_LABEL[periodoSelecionado] || periodoSelecionado;
+    const texto = buildVendorTextReport(vendorDetailNome, periodoLabel, s);
+    downloadText(texto, "relatorio-" + vendorDetailNome.replace(/\s+/g,"-") + "-" + todayIsoCompact() + ".txt");
+  });
+
+  $("btn-vendor-export-csv").addEventListener("click", ()=>{
+    if(!vendorDetailNome) return;
+    const entriesOrdenadas = vendorDetailEntries.slice().reverse();
+    downloadCSV(entriesToCSV(entriesOrdenadas), "vendas-" + vendorDetailNome.replace(/\s+/g,"-") + "-" + todayIsoCompact() + ".csv");
+  });
+
+  $("vendor-detail-overlay").addEventListener("click", (e)=>{
+    if(e.target.id === "vendor-detail-overlay") $("vendor-detail-overlay").classList.remove("show");
   });
 
   $("btn-review-send").addEventListener("click", async ()=>{
@@ -1121,11 +1400,6 @@
     document.querySelectorAll("#toggle-faixa .toggle-btn").forEach(b=>b.classList.remove("selected"));
     presencialSelecionado = null;
     document.querySelectorAll("#toggle-presencial .toggle-btn").forEach(b=>b.classList.remove("selected"));
-    retiradaSelecionada = null;
-    retiradaTriggerText.textContent = "Selecione a forma de retirada";
-    retiradaTrigger.classList.remove("has-value");
-    document.querySelectorAll("#retirada-panel .dropdown-option").forEach(b=>b.classList.remove("selected"));
-    retiradaDropdown.classList.remove("open");
     $("vendedor").value = lastVendorName;
     document.querySelectorAll(".field").forEach(f=>f.classList.remove("has-error"));
     $("btn-submit").disabled = false;
@@ -1164,6 +1438,10 @@
         <div class="rank-top"><span class="name">${escapeHtml(it.name)}</span><span class="val">${valText}</span></div>
         <div class="rank-bar"><div style="width:${Math.max(4, (barVal/maxVal)*100)}%"></div></div>
       `;
+      if(opts.onClick){
+        row.style.cursor = "pointer";
+        row.addEventListener("click", ()=> opts.onClick(it.name));
+      }
       container.appendChild(row);
     });
     if(opts.limit && totalItems > opts.limit){
@@ -1191,14 +1469,19 @@
     $("dash-content").style.display = "none";
 
     const db = await loadDB();
-    const summary = db.summary;
-    const entries = db.entries;
+    const todasEntries = db.entries;
+    const entries = filtrarPorPeriodo(todasEntries, periodoSelecionado);
+    const summary = computeSummaryFromEntries(entries);
 
     $("stat-total").textContent = fmtBRL(summary.totalRevenue);
     $("stat-count").textContent = summary.totalCount;
     $("stat-ticket").textContent = fmtBRLShort(summary.totalCount ? summary.totalRevenue/summary.totalCount : 0);
 
-    const topVendedor = rankRows($("rank-vendedor"), summary.vendedorCount, summary.vendedorRevenue);
+    renderTrendChart($("chart-trend"), computeTrendBuckets(entries, periodoSelecionado));
+    renderHBarChart($("chart-segmento"), summary.segCount, summary.segRevenue);
+    renderHBarChart($("chart-origem"), summary.oriCount, summary.oriRevenue);
+
+    const topVendedor = rankRows($("rank-vendedor"), summary.vendedorCount, summary.vendedorRevenue, { onClick: (nome) => openVendorDetail(nome, entries) });
     const champVendedorEl = $("champ-vendedor");
     if(topVendedor){
       champVendedorEl.style.display = "flex";
@@ -1219,7 +1502,6 @@
     }
     rankRows($("rank-origem"), summary.oriCount, summary.oriRevenue);
     rankRows($("rank-produto"), summary.prodCount, summary.prodRevenue);
-    rankRows($("rank-retirada"), summary.retiradaCount);
     rankRows($("rank-faixa"), summary.faixaCount, null, {naturalOrder:true, showAll:true});
     rankRows($("rank-estado"), summary.estadoCount, summary.estadoRevenue);
     rankRows($("rank-presencial"), summary.presencialCount);
@@ -1246,8 +1528,8 @@
 
     $("dash-loading").style.display = "none";
     $("dash-content").style.display = "block";
-    $("export-count").textContent = entries.length
-      ? entries.length + " vendas armazenadas, prontas para exportar."
+    $("export-count").textContent = todasEntries.length
+      ? todasEntries.length + " vendas armazenadas (todo o histórico), prontas para exportar."
       : "Nenhuma venda para exportar ainda.";
 
     // aviso de configuração pendente (Apps Script ainda não foi configurado)
@@ -1269,11 +1551,11 @@
     return '"' + s.replace(/"/g, '""') + '"';
   }
 
-  const CSV_HEADERS = ["Vendedor","Data","Pedido","Valor (R$)","Faixa","Estado","Tipo de cliente","Segmento","Origem","Produto","Retirada","Presencial","Registrado em"];
+  const CSV_HEADERS = ["Vendedor","Data","Pedido","Valor (R$)","Faixa","Estado","Tipo de cliente","Segmento","Origem","Produto","Presencial","Registrado em"];
   function entryToRow(e){
     return [
       e.vendedor, e.data, e.pedido, (e.valor||0).toFixed(2).replace(".",","),
-      e.faixa, e.estado, e.tipo, e.segmento, e.origem, e.produto, e.retirada || "", e.presencial || "",
+      e.faixa, e.estado, e.tipo, e.segmento, e.origem, e.produto, e.presencial || "",
       new Date(e.ts).toLocaleString("pt-BR")
     ];
   }
