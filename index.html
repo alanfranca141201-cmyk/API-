@@ -88,7 +88,6 @@
   .field.has-error .error{display:block;}
   .field.has-error input,.field.has-error select{border-color:var(--danger);}
   .field.has-error .toggle-row,.field.has-error .toggle-col{outline:1.5px solid var(--danger);outline-offset:4px;border-radius:12px;}
-  .field.has-error .dropdown-trigger{border-color:var(--danger);}
 
   input[type=text],input[type=number],input[type=date],select{
     width:100%;
@@ -117,11 +116,6 @@
     pointer-events:none;
   }
   .money-wrap input{padding-left:34px;font-family:'IBM Plex Mono',monospace;font-weight:600;}
-  .faixa-tag{
-    display:inline-block;margin-top:8px;font-size:12px;font-weight:600;
-    background:#F1F6E4;color:var(--signal-text);border:1px solid #DCEAB0;
-    padding:4px 10px;border-radius:999px;
-  }
 
   .toggle-row{display:flex;gap:8px;}
   .toggle-btn{
@@ -133,29 +127,6 @@
   }
   .toggle-col{display:flex;flex-direction:column;gap:8px;}
   .toggle-col .toggle-btn{width:100%;text-align:left;}
-
-  .dropdown{position:relative;}
-  .dropdown-trigger{
-    width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;
-    padding:12px 12px;border-radius:10px;border:1.5px solid var(--line);
-    background:var(--paper);color:var(--slate);font-size:15px;font-weight:600;
-    font-family:inherit;cursor:pointer;text-align:left;
-  }
-  .dropdown-trigger.has-value{color:var(--ink);}
-  .dropdown-trigger .chevron{color:var(--slate);font-size:11px;transition:transform .15s ease;flex-shrink:0;}
-  .dropdown.open .dropdown-trigger{border-color:var(--signal);}
-  .dropdown.open .chevron{transform:rotate(180deg);}
-  .dropdown-panel{
-    display:none;margin-top:6px;border:1.5px solid var(--line);border-radius:10px;
-    background:var(--card);overflow:hidden;
-  }
-  .dropdown.open .dropdown-panel{display:block;}
-  .dropdown-option{
-    display:block;width:100%;text-align:left;padding:12px;border:none;border-bottom:1px solid var(--line);
-    background:var(--card);color:var(--ink-2);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;
-  }
-  .dropdown-option:last-child{border-bottom:none;}
-  .dropdown-option.selected{background:var(--ink);color:#fff;}
 
   .row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 
@@ -181,10 +152,6 @@
   .btn-primary:disabled{opacity:.6;box-shadow:none;}
 
   /* ---------- Tab bar ---------- */
-  .tabbar{
-    position:sticky;bottom:0;left:0;right:0;
-    display:none; /* shown only when submit-bar not present, controlled by JS via body class */
-  }
   .tabbar-fixed{
     background:var(--card);border-top:1px solid var(--line);
     display:flex;padding-bottom:calc(6px + var(--safe-b));
@@ -229,7 +196,6 @@
 
   .chart-wrap svg{display:block;width:100%;height:auto;}
   #chart-trend{margin-bottom:0;}
-  #chart-segmento, #chart-origem{margin-bottom:14px;}
 
   .champion{
     display:flex;align-items:center;gap:10px;
@@ -405,8 +371,8 @@
     }
     .dash-grid .card{margin-bottom:0;}
 
-    .stat-grid{grid-template-columns:1fr 1fr 1fr;}
-    .stat-card.wide{grid-column:auto;}
+    #view-dashboard .stat-grid{grid-template-columns:1fr 1fr 1fr;}
+    #view-dashboard .stat-grid .stat-card.wide{grid-column:auto;}
   }
 </style>
 
@@ -573,14 +539,12 @@
 
           <div class="card">
             <div class="section-label">Faturamento por segmento</div>
-            <div id="chart-segmento"></div>
             <div id="rank-segmento"></div>
             <div class="champion" id="champ-segmento" style="display:none;"></div>
           </div>
 
           <div class="card">
             <div class="section-label">Faturamento por origem</div>
-            <div id="chart-origem"></div>
             <div id="rank-origem"></div>
           </div>
 
@@ -879,35 +843,6 @@
     container.innerHTML = `<div class="chart-wrap"><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="height:120px;">${bars}${labels}</svg></div>`;
   }
 
-  function truncarTexto(s, n){
-    s = String(s);
-    return s.length > n ? s.slice(0, n-1) + "…" : s;
-  }
-
-  function renderHBarChart(container, countMap, revenueMap){
-    const items = Object.keys(countMap)
-      .map(k => ({name:k, value: (revenueMap[k]||0)}))
-      .filter(it => it.value > 0)
-      .sort((a,b)=>b.value-a.value)
-      .slice(0, 6);
-    if(items.length === 0){ container.innerHTML = ""; return; }
-    const rowH = 22, gap = 8, w = 320;
-    const h = items.length * (rowH+gap) - gap;
-    const maxVal = Math.max(1, ...items.map(it=>it.value));
-    let rows = "";
-    items.forEach((it,i)=>{
-      const y = i*(rowH+gap);
-      const barMaxW = w - 96;
-      const barW = Math.max(3, (it.value/maxVal) * barMaxW);
-      rows += `
-        <text x="0" y="${(y+rowH/2+3).toFixed(1)}" font-size="10" style="fill:var(--ink-2);font-weight:600"><title>${escapeHtml(it.name)}</title>${escapeHtml(truncarTexto(it.name, 15))}</text>
-        <rect x="82" y="${(y+3).toFixed(1)}" width="${barW.toFixed(1)}" height="${(rowH-6).toFixed(1)}" rx="4" style="fill:var(--signal)"></rect>
-        <text x="${(82+barW+6).toFixed(1)}" y="${(y+rowH/2+3).toFixed(1)}" font-size="9" style="fill:var(--slate)">${escapeHtml(fmtBRLShort(it.value))}</text>
-      `;
-    });
-    container.innerHTML = `<div class="chart-wrap"><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="height:${h}px;">${rows}</svg></div>`;
-  }
-
   // ---------------- Máscara automática do campo Valor (evita erro de ponto/vírgula) ----------------
   function formatCentavos(digits){
     digits = digits.replace(/^0+(?=\d)/, "");
@@ -1041,7 +976,7 @@
   }
 
   function emptySummary(){
-    const bySeg = {}, byOri = {}, byProd = {}, byFaixa = {}, byTipo = {Novo:0, Recorrente:0}, byTipoRev = {Novo:0, Recorrente:0}, byPresencial = {};
+    const bySeg = {}, byOri = {}, byProd = {}, byFaixa = {}, byTipo = {Novo:0, Recorrente:0}, byTipoRev = {Novo:0, Recorrente:0}, byPresencial = {}, byPresencialRev = {};
     SEGMENTOS.forEach(s=>bySeg[s]=0);
     ORIGENS.forEach(s=>byOri[s]=0);
     PRODUTOS.forEach(s=>byProd[s]=0);
@@ -1053,7 +988,7 @@
       prodCount:{...byProd}, prodRevenue:{...byProd},
       faixaCount:{...byFaixa},
       tipoCount:{...byTipo}, tipoRevenue:{...byTipoRev},
-      presencialCount:{...byPresencial},
+      presencialCount:{...byPresencial}, presencialRevenue:{...byPresencialRev},
       vendedorCount:{}, vendedorRevenue:{},
       estadoCount:{}, estadoRevenue:{}
     };
@@ -1074,6 +1009,7 @@
       summary.tipoCount[entry.tipo] = (summary.tipoCount[entry.tipo]||0) + 1;
       summary.tipoRevenue[entry.tipo] = (summary.tipoRevenue[entry.tipo]||0) + entry.valor;
       summary.presencialCount[entry.presencial] = (summary.presencialCount[entry.presencial]||0) + 1;
+      summary.presencialRevenue[entry.presencial] = (summary.presencialRevenue[entry.presencial]||0) + entry.valor;
       summary.vendedorRevenue[entry.vendedor] = (summary.vendedorRevenue[entry.vendedor]||0) + entry.valor;
       summary.vendedorCount[entry.vendedor] = (summary.vendedorCount[entry.vendedor]||0) + 1;
       summary.estadoRevenue[entry.estado] = (summary.estadoRevenue[entry.estado]||0) + entry.valor;
@@ -1268,7 +1204,7 @@
     rankRows($("vd-rank-segmento"), s.segCount, s.segRevenue);
     rankRows($("vd-rank-origem"), s.oriCount, s.oriRevenue);
     rankRows($("vd-rank-produto"), s.prodCount, s.prodRevenue);
-    rankRows($("vd-rank-presencial"), s.presencialCount);
+    rankRows($("vd-rank-presencial"), s.presencialCount, s.presencialRevenue);
     rankRows($("vd-rank-estado"), s.estadoCount, s.estadoRevenue);
 
     $("vendor-detail-overlay").classList.add("show");
@@ -1318,7 +1254,7 @@
       formatarSecaoTexto(s.prodCount, s.prodRevenue),
       "",
       "ESTEVE NA LOJA?",
-      formatarSecaoTexto(s.presencialCount),
+      formatarSecaoTexto(s.presencialCount, s.presencialRevenue),
       "",
       "ESTADO",
       formatarSecaoTexto(s.estadoCount, s.estadoRevenue),
@@ -1478,8 +1414,6 @@
     $("stat-ticket").textContent = fmtBRLShort(summary.totalCount ? summary.totalRevenue/summary.totalCount : 0);
 
     renderTrendChart($("chart-trend"), computeTrendBuckets(entries, periodoSelecionado));
-    renderHBarChart($("chart-segmento"), summary.segCount, summary.segRevenue);
-    renderHBarChart($("chart-origem"), summary.oriCount, summary.oriRevenue);
 
     const topVendedor = rankRows($("rank-vendedor"), summary.vendedorCount, summary.vendedorRevenue, { onClick: (nome) => openVendorDetail(nome, entries) });
     const champVendedorEl = $("champ-vendedor");
@@ -1504,7 +1438,7 @@
     rankRows($("rank-produto"), summary.prodCount, summary.prodRevenue);
     rankRows($("rank-faixa"), summary.faixaCount, null, {naturalOrder:true, showAll:true});
     rankRows($("rank-estado"), summary.estadoCount, summary.estadoRevenue);
-    rankRows($("rank-presencial"), summary.presencialCount);
+    rankRows($("rank-presencial"), summary.presencialCount, summary.presencialRevenue);
 
     const recentEl = $("recent-list");
     recentEl.innerHTML = "";
