@@ -223,9 +223,11 @@
   .champion .k{color:#3E7A56;font-weight:500;}
 
   .recent-item{
+    cursor:pointer;transition:background .12s ease;
     display:flex;justify-content:space-between;align-items:center;
     padding:10px 0;border-bottom:1px solid var(--line);
   }
+  .recent-item:active{background:var(--paper);}
   .recent-item:last-child{border-bottom:none;}
   .recent-item .who{font-weight:600;font-size:13px;}
   .recent-item .meta{font-size:12px;color:var(--slate);margin-top:2px;}
@@ -269,6 +271,13 @@
     padding:20px;
   }
   #review-overlay.show{opacity:1;pointer-events:auto;}
+  #sale-detail-overlay{
+    position:fixed;inset:0;background:rgba(27,31,35,0.92);
+    display:flex;align-items:center;justify-content:center;
+    z-index:45;opacity:0;pointer-events:none;transition:opacity .18s ease;
+    padding:20px;
+  }
+  #sale-detail-overlay.show{opacity:1;pointer-events:auto;}
   .review-card{width:100%;max-width:440px;max-height:82vh;overflow-y:auto;margin-bottom:0;}
   .review-row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;}
   .review-row:last-child{border-bottom:none;}
@@ -420,7 +429,7 @@
           <label for="valor">Valor da venda</label>
           <div class="money-wrap">
             <span class="prefix">R$</span>
-            <input type="number" id="valor" inputmode="decimal" placeholder="0,00" min="0" step="0.01">
+            <input type="text" id="valor" inputmode="numeric" placeholder="0,00" autocomplete="off">
           </div>
           <div class="error">Informe um valor válido.</div>
         </div>
@@ -458,21 +467,22 @@
           </div>
           <div class="error">Selecione a forma de retirada.</div>
         </div>
+        <div class="field" id="f-presencial">
+          <label>Cliente esteve presencialmente na loja?</label>
+          <div class="toggle-row" id="toggle-presencial">
+            <button type="button" class="toggle-btn" data-val="Esteve presencialmente">Esteve na loja</button>
+            <button type="button" class="toggle-btn" data-val="Não esteve presencialmente">Não esteve na loja</button>
+          </div>
+          <div class="error">Informe se o cliente esteve presencialmente na loja.</div>
+        </div>
       </div>
 
       <div class="card">
         <div class="section-label">Cliente</div>
-        <div class="row-2">
-          <div class="field" id="f-cidade">
-            <label for="cidade">Cidade</label>
-            <input type="text" id="cidade" placeholder="Ex: Belo Horizonte" autocomplete="off">
-            <div class="error">Informe a cidade.</div>
-          </div>
-          <div class="field" id="f-estado">
-            <label for="estado">Estado</label>
-            <select id="estado"></select>
-            <div class="error">Selecione o estado.</div>
-          </div>
+        <div class="field" id="f-estado">
+          <label for="estado">Estado</label>
+          <select id="estado"></select>
+          <div class="error">Selecione o estado.</div>
         </div>
         <div class="field" id="f-segmento">
           <label for="segmento">Segmento do cliente</label>
@@ -572,8 +582,8 @@
           </div>
 
           <div class="card">
-            <div class="section-label">Top cidades</div>
-            <div id="rank-cidade"></div>
+            <div class="section-label">Cliente esteve na loja?</div>
+            <div id="rank-presencial"></div>
           </div>
         </div>
 
@@ -641,6 +651,16 @@
     </div>
   </div>
 
+  <div id="sale-detail-overlay">
+    <div class="card review-card">
+      <div class="section-label">Detalhes da venda</div>
+      <div id="sale-detail-list"></div>
+      <div class="btn-row">
+        <button type="button" class="btn-primary" id="btn-sale-detail-close" style="box-shadow:none;">Fechar</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -650,8 +670,8 @@
   // ---------------- Reference lists (mirrors the spreadsheet's "Listas" tab) ----------------
   const VENDEDORES = ["Anna","Americo","Rebeca","Leonardo","Maisa","Lene"];
   const ESTADOS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
-  const SEGMENTOS = ["Condomínio","Indústrias","Distribuidor","Bar/Restaurante","Igreja","Empresa","Consumidor final","Outro"];
-  const ORIGENS = ["Google/site/e-mail","Anúncio promocional","Indicação","Cliente recorrente","OLX","Prospecção individual","Porta","Outro"];
+  const SEGMENTOS = ["Condomínio","Indústrias","Distribuidor","Bar/Restaurante","Igreja","Empresa","Consumidor final","Locador","Hospital","Prefeitura","Outro"];
+  const ORIGENS = ["Google/site/e-mail","Anúncio promocional","Indicação","Cliente recorrente","Prospecção individual","Porta","Outro"];
   const PRODUTOS = ["Móvel de plástico tradicional","Móvel de plástico Premium","Linha de madeira","Linha industrial"];
   const FAIXAS = ["Até R$ 500","R$ 500–2.000","R$ 2.000–5.000","R$ 5.000–10.000","Acima de R$ 10.000"];
   const RETIRADAS = ["Retirou por transportadora","Levou em carro próprio","Usou frete da loja"];
@@ -694,6 +714,24 @@
   const fmtBRL = n => "R$ " + Number(n||0).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
   const fmtBRLShort = n => "R$ " + Number(n||0).toLocaleString("pt-BR", {maximumFractionDigits:0});
 
+  // ---------------- Máscara automática do campo Valor (evita erro de ponto/vírgula) ----------------
+  function formatCentavos(digits){
+    digits = digits.replace(/^0+(?=\d)/, "");
+    while(digits.length < 3) digits = "0" + digits;
+    const centavos = digits.slice(-2);
+    const inteiro = digits.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return inteiro + "," + centavos;
+  }
+  function parseValorInput(str){
+    if(!str) return 0;
+    const n = parseFloat(String(str).replace(/\./g, "").replace(",", "."));
+    return isNaN(n) ? 0 : n;
+  }
+  $("valor").addEventListener("input", (e)=>{
+    const digits = e.target.value.replace(/\D/g, "");
+    e.target.value = digits ? formatCentavos(digits) : "";
+  });
+
   // ---------------- Tipo toggle ----------------
   let tipoSelecionado = null;
   document.querySelectorAll("#toggle-tipo .toggle-btn").forEach(btn=>{
@@ -702,6 +740,17 @@
       btn.classList.add("selected");
       tipoSelecionado = btn.dataset.val;
       $("f-tipo") && $("f-tipo").classList.remove("has-error");
+    });
+  });
+
+  // ---------------- Presencial toggle ----------------
+  let presencialSelecionado = null;
+  document.querySelectorAll("#toggle-presencial .toggle-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll("#toggle-presencial .toggle-btn").forEach(b=>b.classList.remove("selected"));
+      btn.classList.add("selected");
+      presencialSelecionado = btn.dataset.val;
+      $("f-presencial") && $("f-presencial").classList.remove("has-error");
     });
   });
 
@@ -815,7 +864,7 @@
   }
 
   function emptySummary(){
-    const bySeg = {}, byOri = {}, byProd = {}, byFaixa = {}, byTipo = {Novo:0, Recorrente:0}, byTipoRev = {Novo:0, Recorrente:0}, byRetirada = {};
+    const bySeg = {}, byOri = {}, byProd = {}, byFaixa = {}, byTipo = {Novo:0, Recorrente:0}, byTipoRev = {Novo:0, Recorrente:0}, byRetirada = {}, byPresencial = {};
     SEGMENTOS.forEach(s=>bySeg[s]=0);
     ORIGENS.forEach(s=>byOri[s]=0);
     PRODUTOS.forEach(s=>byProd[s]=0);
@@ -829,9 +878,9 @@
       faixaCount:{...byFaixa},
       tipoCount:{...byTipo}, tipoRevenue:{...byTipoRev},
       retiradaCount:{...byRetirada},
+      presencialCount:{...byPresencial},
       vendedorCount:{}, vendedorRevenue:{},
-      estadoCount:{}, estadoRevenue:{},
-      cidadeCount:{}, cidadeRevenue:{}
+      estadoCount:{}, estadoRevenue:{}
     };
   }
 
@@ -850,12 +899,11 @@
       summary.tipoCount[entry.tipo] = (summary.tipoCount[entry.tipo]||0) + 1;
       summary.tipoRevenue[entry.tipo] = (summary.tipoRevenue[entry.tipo]||0) + entry.valor;
       summary.retiradaCount[entry.retirada] = (summary.retiradaCount[entry.retirada]||0) + 1;
+      summary.presencialCount[entry.presencial] = (summary.presencialCount[entry.presencial]||0) + 1;
       summary.vendedorRevenue[entry.vendedor] = (summary.vendedorRevenue[entry.vendedor]||0) + entry.valor;
       summary.vendedorCount[entry.vendedor] = (summary.vendedorCount[entry.vendedor]||0) + 1;
       summary.estadoRevenue[entry.estado] = (summary.estadoRevenue[entry.estado]||0) + entry.valor;
       summary.estadoCount[entry.estado] = (summary.estadoCount[entry.estado]||0) + 1;
-      summary.cidadeRevenue[entry.cidade] = (summary.cidadeRevenue[entry.cidade]||0) + entry.valor;
-      summary.cidadeCount[entry.cidade] = (summary.cidadeCount[entry.cidade]||0) + 1;
     });
     return summary;
   }
@@ -871,9 +919,10 @@
         const parsedTs = r["Registrado em"] ? new Date(r["Registrado em"]).getTime() : NaN;
         return {
           vendedor: r["Vendedor"] || "", data: r["Data"] || "", pedido: r["Pedido"] || "",
-          valor: Number(r["Valor"]) || 0, faixa: r["Faixa"] || "", cidade: r["Cidade"] || "",
+          valor: Number(r["Valor"]) || 0, faixa: r["Faixa"] || "",
           estado: r["Estado"] || "", tipo: r["Tipo"] || "", segmento: r["Segmento"] || "",
           origem: r["Origem"] || "", produto: r["Produto"] || "", retirada: r["Retirada"] || "",
+          presencial: r["Presencial"] || "",
           ts: isNaN(parsedTs) ? Date.now() : parsedTs
         };
       }).reverse(); // a planilha guarda em ordem de chegada; o app espera mais recente primeiro
@@ -909,17 +958,15 @@
     let ok = true;
     const vendedor = $("vendedor").value.trim();
     const pedido = $("pedido").value.trim();
-    const cidade = $("cidade").value.trim();
     const data = $("data").value;
     const estado = $("estado").value;
     const segmento = $("segmento").value;
     const origem = $("origem").value;
     const produto = $("produto").value;
-    const valor = parseFloat($("valor").value);
+    const valor = parseValorInput($("valor").value);
 
     setError("f-vendedor", !vendedor); if(!vendedor) ok = false;
     setError("f-pedido", !pedido); if(!pedido) ok = false;
-    setError("f-cidade", !cidade); if(!cidade) ok = false;
     setError("f-data", !data); if(!data) ok = false;
     setError("f-estado", !estado); if(!estado) ok = false;
     setError("f-valor", isNaN(valor) || valor <= 0); if(isNaN(valor) || valor <= 0) ok = false;
@@ -929,6 +976,7 @@
     setError("f-tipo", !tipoSelecionado); if(!tipoSelecionado) ok = false;
     setError("f-faixa", !faixaSelecionada); if(!faixaSelecionada) ok = false;
     setError("f-retirada", !retiradaSelecionada); if(!retiradaSelecionada) ok = false;
+    setError("f-presencial", !presencialSelecionado); if(!presencialSelecionado) ok = false;
 
     if(!ok){
       const firstError = document.querySelector(".field.has-error");
@@ -950,11 +998,12 @@
       ["Valor", fmtBRL(entry.valor)],
       ["Faixa", entry.faixa],
       ["Cliente", entry.tipo],
-      ["Cidade/UF", entry.cidade + " / " + entry.estado],
+      ["Estado", entry.estado],
       ["Segmento", entry.segmento],
       ["Origem", entry.origem],
       ["Produto", entry.produto],
-      ["Retirada", entry.retirada]
+      ["Retirada", entry.retirada],
+      ["Presencial", entry.presencial]
     ];
   }
 
@@ -983,13 +1032,12 @@
       }, 1600);
       return;
     }
-    const valor = parseFloat($("valor").value);
+    const valor = parseValorInput($("valor").value);
     currentEntry = {
       vendedor: $("vendedor").value.trim(),
       data: $("data").value,
       pedido: $("pedido").value.trim(),
       valor: valor,
-      cidade: $("cidade").value.trim(),
       estado: $("estado").value,
       tipo: tipoSelecionado,
       segmento: $("segmento").value,
@@ -997,6 +1045,7 @@
       produto: $("produto").value,
       faixa: faixaSelecionada,
       retirada: retiradaSelecionada,
+      presencial: presencialSelecionado,
       ts: Date.now()
     };
     openReview(currentEntry);
@@ -1006,6 +1055,25 @@
 
   $("btn-review-back").addEventListener("click", ()=>{
     $("review-overlay").classList.remove("show");
+  });
+
+  function openSaleDetail(entry){
+    const list = $("sale-detail-list");
+    list.innerHTML = "";
+    const campos = fmtCampo(entry).concat([["Registrado em", new Date(entry.ts).toLocaleString("pt-BR")]]);
+    campos.forEach(([k,v])=>{
+      const row = document.createElement("div");
+      row.className = "review-row";
+      row.innerHTML = `<span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(v)}</span>`;
+      list.appendChild(row);
+    });
+    $("sale-detail-overlay").classList.add("show");
+  }
+  $("btn-sale-detail-close").addEventListener("click", ()=>{
+    $("sale-detail-overlay").classList.remove("show");
+  });
+  $("sale-detail-overlay").addEventListener("click", (e)=>{
+    if(e.target.id === "sale-detail-overlay") $("sale-detail-overlay").classList.remove("show");
   });
 
   $("btn-review-send").addEventListener("click", async ()=>{
@@ -1043,7 +1111,6 @@
   function resetForm(){
     $("pedido").value = "";
     $("valor").value = "";
-    $("cidade").value = "";
     $("estado").selectedIndex = 0;
     $("segmento").selectedIndex = 0;
     $("origem").selectedIndex = 0;
@@ -1052,6 +1119,8 @@
     document.querySelectorAll("#toggle-tipo .toggle-btn").forEach(b=>b.classList.remove("selected"));
     faixaSelecionada = null;
     document.querySelectorAll("#toggle-faixa .toggle-btn").forEach(b=>b.classList.remove("selected"));
+    presencialSelecionado = null;
+    document.querySelectorAll("#toggle-presencial .toggle-btn").forEach(b=>b.classList.remove("selected"));
     retiradaSelecionada = null;
     retiradaTriggerText.textContent = "Selecione a forma de retirada";
     retiradaTrigger.classList.remove("has-value");
@@ -1101,7 +1170,7 @@
       const more = document.createElement("div");
       more.className = "hint";
       more.style.marginTop = "8px";
-      more.textContent = "+ " + (totalItems - opts.limit) + " outra" + (totalItems - opts.limit === 1 ? "" : "s") + " cidade" + (totalItems - opts.limit === 1 ? "" : "s") + " com vendas";
+      more.textContent = "+ " + (totalItems - opts.limit) + " outro" + (totalItems - opts.limit === 1 ? "" : "s") + " item" + (totalItems - opts.limit === 1 ? "" : "s") + " com vendas";
       container.appendChild(more);
     }
     return items.slice().sort((a,b)=>b.revenue-a.revenue)[0];
@@ -1153,7 +1222,7 @@
     rankRows($("rank-retirada"), summary.retiradaCount);
     rankRows($("rank-faixa"), summary.faixaCount, null, {naturalOrder:true, showAll:true});
     rankRows($("rank-estado"), summary.estadoCount, summary.estadoRevenue);
-    rankRows($("rank-cidade"), summary.cidadeCount, summary.cidadeRevenue, {limit:10});
+    rankRows($("rank-presencial"), summary.presencialCount);
 
     const recentEl = $("recent-list");
     recentEl.innerHTML = "";
@@ -1165,11 +1234,12 @@
         row.className = "recent-item";
         row.innerHTML = `
           <div>
-            <div class="who">${escapeHtml(e.vendedor)} · ${escapeHtml(e.cidade)}</div>
+            <div class="who">${escapeHtml(e.vendedor)} · ${escapeHtml(e.estado)}</div>
             <div class="meta">${escapeHtml(e.segmento)} · ${timeAgo(e.ts)}</div>
           </div>
           <div class="amt">${fmtBRLShort(e.valor)}</div>
         `;
+        row.addEventListener("click", ()=> openSaleDetail(e));
         recentEl.appendChild(row);
       });
     }
@@ -1199,11 +1269,11 @@
     return '"' + s.replace(/"/g, '""') + '"';
   }
 
-  const CSV_HEADERS = ["Vendedor","Data","Pedido","Valor (R$)","Faixa","Cidade","Estado","Tipo de cliente","Segmento","Origem","Produto","Retirada","Registrado em"];
+  const CSV_HEADERS = ["Vendedor","Data","Pedido","Valor (R$)","Faixa","Estado","Tipo de cliente","Segmento","Origem","Produto","Retirada","Presencial","Registrado em"];
   function entryToRow(e){
     return [
       e.vendedor, e.data, e.pedido, (e.valor||0).toFixed(2).replace(".",","),
-      e.faixa, e.cidade, e.estado, e.tipo, e.segmento, e.origem, e.produto, e.retirada || "",
+      e.faixa, e.estado, e.tipo, e.segmento, e.origem, e.produto, e.retirada || "", e.presencial || "",
       new Date(e.ts).toLocaleString("pt-BR")
     ];
   }
