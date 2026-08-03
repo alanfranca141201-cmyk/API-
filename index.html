@@ -242,7 +242,10 @@
   #confirm-overlay.show .stamp{transform:scale(1) rotate(-6deg);opacity:1;}
   .stamp .t1{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;letter-spacing:.03em;}
   .stamp .t2{font-family:'IBM Plex Mono',monospace;font-size:13px;margin-top:6px;color:#D7E6A8;}
-  .stamp .t3{font-family:'Inter',sans-serif;font-size:11px;margin-top:10px;color:#B9C79A;font-weight:600;}
+  .stamp .t3{font-family:'Inter',sans-serif;font-size:11px;margin-top:10px;color:#B9C79A;font-weight:600;line-height:1.5;}
+  .stamp.fail{border-color:var(--danger);color:var(--danger);}
+  .stamp.fail .t2{color:#F0BBAE;}
+  .stamp.fail .t3{color:#F0BBAE;}
   @media (prefers-reduced-motion: reduce){
     .stamp{transition:none;transform:none;opacity:1;}
     #confirm-overlay{transition:none;}
@@ -258,7 +261,7 @@
   #sale-detail-overlay{
     position:fixed;inset:0;background:rgba(27,31,35,0.92);
     display:flex;align-items:center;justify-content:center;
-    z-index:45;opacity:0;pointer-events:none;transition:opacity .18s ease;
+    z-index:46;opacity:0;pointer-events:none;transition:opacity .18s ease;
     padding:20px;
   }
   #sale-detail-overlay.show{opacity:1;pointer-events:auto;}
@@ -269,6 +272,13 @@
     padding:20px;
   }
   #vendor-detail-overlay.show{opacity:1;pointer-events:auto;}
+  #segmento-detail-overlay{
+    position:fixed;inset:0;background:rgba(27,31,35,0.92);
+    display:flex;align-items:center;justify-content:center;
+    z-index:45;opacity:0;pointer-events:none;transition:opacity .18s ease;
+    padding:20px;
+  }
+  #segmento-detail-overlay.show{opacity:1;pointer-events:auto;}
   #conferencia-overlay{
     position:fixed;inset:0;background:rgba(27,31,35,0.92);
     display:flex;align-items:center;justify-content:center;
@@ -500,7 +510,7 @@
         </div>
       </div>
 
-      <div class="note-banner">Ao enviar, a venda vai direto para a planilha em tempo real. Se a conexão falhar, um CSV de backup baixa automaticamente no celular.</div>
+      <div class="note-banner">Ao enviar, a venda vai direto para a planilha em tempo real. Se a conexão falhar, a venda NÃO é salva — você verá um aviso claro e poderá tentar novamente.</div>
 
       <button type="button" class="btn-primary btn-desktop-submit" id="btn-submit-desktop">Fechar venda</button>
     </section>
@@ -544,6 +554,12 @@
         <div class="card">
           <div class="section-label">Faturamento ao longo do tempo</div>
           <div id="chart-trend"></div>
+        </div>
+
+        <div class="card" id="card-duplicadas" style="display:none;border:1.5px solid var(--danger);">
+          <div class="section-label" style="color:var(--danger);">⚠️ Possíveis vendas duplicadas</div>
+          <div class="hint" style="margin-top:0;margin-bottom:10px;">Mesma data e mesmo valor — vale conferir se não é a mesma venda lançada mais de uma vez. Toque numa venda para ver os detalhes.</div>
+          <div id="lista-duplicadas"></div>
         </div>
 
         <div class="dash-grid">
@@ -642,10 +658,11 @@
   </div>
 
   <div id="confirm-overlay">
-    <div class="stamp">
-      <div class="t1">VENDA FECHADA</div>
+    <div class="stamp" id="stamp-box">
+      <div class="t1" id="stamp-title">VENDA FECHADA</div>
       <div class="t2" id="stamp-detail">—</div>
-      <div class="t3" id="stamp-note">📄 CSV baixado — envie para seu gestor</div>
+      <div class="t3" id="stamp-note" style="display:none;"></div>
+      <button type="button" class="btn-primary" id="btn-stamp-ok" style="display:none;margin-top:16px;box-shadow:none;">Entendi</button>
     </div>
   </div>
 
@@ -689,6 +706,9 @@
         </div>
       </div>
 
+      <div class="section-label">Vendas deste vendedor</div>
+      <div id="vd-lista-vendas" style="margin-bottom:16px;"></div>
+
       <div class="section-label">Clientes novos x recorrentes</div>
       <div id="vd-rank-tipo"></div>
 
@@ -716,6 +736,55 @@
       </div>
       <div class="btn-row" style="margin-top:10px;">
         <button type="button" class="btn-primary" id="btn-vendor-detail-close" style="box-shadow:none;">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="segmento-detail-overlay">
+    <div class="card review-card">
+      <div class="section-label" id="sd-name">Segmento</div>
+
+      <div class="stat-grid" style="margin-bottom:16px;">
+        <div class="stat-card wide">
+          <div class="label">Faturamento total</div>
+          <div class="value" id="sd-total">R$ 0,00</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Vendas</div>
+          <div class="value" id="sd-count">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Ticket médio</div>
+          <div class="value" id="sd-ticket">R$ 0</div>
+        </div>
+      </div>
+
+      <div class="section-label">Vendas deste segmento</div>
+      <div id="sd-lista-vendas" style="margin-bottom:16px;"></div>
+
+      <div class="section-label">Faturamento por vendedor</div>
+      <div id="sd-rank-vendedor"></div>
+
+      <div class="section-label" style="margin-top:14px;">Clientes novos x recorrentes</div>
+      <div id="sd-rank-tipo"></div>
+
+      <div class="section-label" style="margin-top:14px;">Faixa de valor</div>
+      <div id="sd-rank-faixa"></div>
+
+      <div class="section-label" style="margin-top:14px;">Origem</div>
+      <div id="sd-rank-origem"></div>
+
+      <div class="section-label" style="margin-top:14px;">Produto</div>
+      <div id="sd-rank-produto"></div>
+
+      <div class="section-label" style="margin-top:14px;">Cliente esteve na loja?</div>
+      <div id="sd-rank-presencial"></div>
+
+      <div class="section-label" style="margin-top:14px;">Estado</div>
+      <div id="sd-rank-estado"></div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button type="button" class="btn-primary" id="btn-segmento-detail-close" style="box-shadow:none;">Fechar</button>
       </div>
     </div>
   </div>
@@ -761,9 +830,9 @@
   "use strict";
 
   // ---------------- Reference lists (mirrors the spreadsheet's "Listas" tab) ----------------
-  const VENDEDORES = ["Anna","Americo","Rebeca","Leonardo","Maisa","Lene"];
+  const VENDEDORES = ["Anna","Americo","Rebeca","Leonardo","Maisa","Lene","Iskarllat"];
   const ESTADOS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
-  const SEGMENTOS = ["Condomínio","Indústrias","Distribuidor","Bar/Restaurante","Igreja","Empresa","Consumidor final","Locador","Hospital","Prefeitura","Outro"];
+  const SEGMENTOS = ["Condomínio","Indústrias","Distribuidor","Bar/Restaurante","Igreja","Empresa","Consumidor final","Locador","Hospital","Prefeitura","Construtora","Outro"];
   const ORIGENS = ["Google/site/e-mail","Anúncio promocional","Indicação","Cliente recorrente","Prospecção individual","Porta","Outro"];
   const PRODUTOS = ["Móvel de plástico tradicional","Móvel de plástico Premium","Linha de madeira","Linha industrial"];
   const FAIXAS = ["Até R$ 500","R$ 500–2.000","R$ 2.000–5.000","R$ 5.000–10.000","Acima de R$ 10.000"];
@@ -904,7 +973,63 @@
     container.innerHTML = `<div class="chart-wrap"><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="height:120px;">${bars}${labels}</svg></div>`;
   }
 
-  // ---------------- Máscara automática do campo Valor (evita erro de ponto/vírgula) ----------------
+  // ---------------- Alerta de possíveis vendas duplicadas (mesma data + mesmo valor) ----------------
+  function fmtDataBR(iso){
+    const partes = String(iso||"").split("-");
+    return partes.length === 3 ? (partes[2] + "/" + partes[1] + "/" + partes[0]) : (iso || "");
+  }
+  function detectarPossiveisDuplicadas(entries){
+    const grupos = {};
+    entries.forEach(e=>{
+      if(!e.data || !(e.valor > 0)) return;
+      const chave = e.data + "|" + e.valor.toFixed(2);
+      if(!grupos[chave]) grupos[chave] = [];
+      grupos[chave].push(e);
+    });
+    return Object.values(grupos).filter(g => g.length > 1);
+  }
+  function renderDuplicadas(entries){
+    const cardEl = $("card-duplicadas");
+    const listaEl = $("lista-duplicadas");
+    const grupos = detectarPossiveisDuplicadas(entries);
+    if(grupos.length === 0){
+      cardEl.style.display = "none";
+      listaEl.innerHTML = "";
+      return;
+    }
+    cardEl.style.display = "block";
+    listaEl.innerHTML = "";
+    grupos.forEach(grupo=>{
+      const secao = document.createElement("div");
+      secao.className = "conf-secao alerta";
+      const titulo = document.createElement("div");
+      titulo.className = "titulo";
+      titulo.textContent = grupo.length + " vendas com o mesmo valor em " + fmtDataBR(grupo[0].data) + " (" + fmtBRL(grupo[0].valor) + ")";
+      secao.appendChild(titulo);
+      grupo.forEach(entry=>{
+        const item = document.createElement("div");
+        item.className = "conf-item";
+        item.style.cursor = "pointer";
+        item.innerHTML = `<span class="p">${escapeHtml(entry.vendedor)} — ${escapeHtml(entry.pedido)}</span><span class="v">${escapeHtml(fmtBRL(entry.valor))}</span>`;
+        item.addEventListener("click", ()=> openSaleDetail(entry));
+        secao.appendChild(item);
+      });
+      listaEl.appendChild(secao);
+    });
+  }
+
+  // ---------------- Faixa da venda toggle ----------------
+  let faixaSelecionada = null;
+  document.querySelectorAll("#toggle-faixa .toggle-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll("#toggle-faixa .toggle-btn").forEach(b=>b.classList.remove("selected"));
+      btn.classList.add("selected");
+      faixaSelecionada = btn.dataset.val;
+      $("f-faixa").classList.remove("has-error");
+    });
+  });
+
+  // ---------------- Máscara automática do campo Valor (evita erro de ponto/vírgula) e seleção automática da faixa ----------------
   function formatCentavos(digits){
     digits = digits.replace(/^0+(?=\d)/, "");
     while(digits.length < 3) digits = "0" + digits;
@@ -917,9 +1042,29 @@
     const n = parseFloat(String(str).replace(/\./g, "").replace(",", "."));
     return isNaN(n) ? 0 : n;
   }
+  function faixaParaValor(valor){
+    if(valor <= 500) return "Até R$ 500";
+    if(valor <= 2000) return "R$ 500–2.000";
+    if(valor <= 5000) return "R$ 2.000–5.000";
+    if(valor <= 10000) return "R$ 5.000–10.000";
+    return "Acima de R$ 10.000";
+  }
+  function selecionarFaixaAutomaticamente(valor){
+    if(valor > 0){
+      faixaSelecionada = faixaParaValor(valor);
+      document.querySelectorAll("#toggle-faixa .toggle-btn").forEach(b=>{
+        b.classList.toggle("selected", b.dataset.val === faixaSelecionada);
+      });
+      $("f-faixa") && $("f-faixa").classList.remove("has-error");
+    } else {
+      faixaSelecionada = null;
+      document.querySelectorAll("#toggle-faixa .toggle-btn").forEach(b=>b.classList.remove("selected"));
+    }
+  }
   $("valor").addEventListener("input", (e)=>{
     const digits = e.target.value.replace(/\D/g, "");
     e.target.value = digits ? formatCentavos(digits) : "";
+    selecionarFaixaAutomaticamente(parseValorInput(e.target.value));
   });
 
   // ---------------- Tipo toggle ----------------
@@ -930,6 +1075,10 @@
       btn.classList.add("selected");
       tipoSelecionado = btn.dataset.val;
       $("f-tipo") && $("f-tipo").classList.remove("has-error");
+      if(tipoSelecionado === "Recorrente"){
+        $("origem").value = "Cliente recorrente";
+        $("f-origem") && $("f-origem").classList.remove("has-error");
+      }
     });
   });
 
@@ -941,17 +1090,6 @@
       btn.classList.add("selected");
       presencialSelecionado = btn.dataset.val;
       $("f-presencial") && $("f-presencial").classList.remove("has-error");
-    });
-  });
-
-  // ---------------- Faixa da venda toggle ----------------
-  let faixaSelecionada = null;
-  document.querySelectorAll("#toggle-faixa .toggle-btn").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      document.querySelectorAll("#toggle-faixa .toggle-btn").forEach(b=>b.classList.remove("selected"));
-      btn.classList.add("selected");
-      faixaSelecionada = btn.dataset.val;
-      $("f-faixa").classList.remove("has-error");
     });
   });
 
@@ -1029,7 +1167,7 @@
 
   // ---------------- Google Sheets como banco de dados ----------------
   // Cole aqui a URL do seu Apps Script (veja o guia de configuração).
-  // Enquanto não configurar, o app funciona só localmente (CSV sempre baixa, mas o painel fica vazio).
+  // Enquanto não configurar, nenhuma venda é salva de verdade (o painel fica vazio).
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwM2w2EcgE1t4LiPKxwZ_17Cw2gCNWmYS_ddm09YURZwQlyZgmNkxqkOjvt8s9EOyhAlw/exec";
 
   function isConfigured(){
@@ -1249,6 +1387,27 @@
   let vendorDetailNome = null;
   let vendorDetailEntries = [];
 
+  function renderListaVendas(container, entries){
+    container.innerHTML = "";
+    if(entries.length === 0){
+      container.innerHTML = '<div class="empty-state" style="padding:10px 0;">Nenhuma venda encontrada.</div>';
+      return;
+    }
+    entries.forEach(entry=>{
+      const row = document.createElement("div");
+      row.className = "recent-item";
+      row.innerHTML = `
+        <div>
+          <div class="who">${escapeHtml(entry.vendedor)} — ${escapeHtml(entry.pedido)}</div>
+          <div class="meta">${escapeHtml(fmtDataBR(entry.data))} · ${escapeHtml(entry.estado)}</div>
+        </div>
+        <div class="amt">${fmtBRLShort(entry.valor)}</div>
+      `;
+      row.addEventListener("click", ()=> openSaleDetail(entry));
+      container.appendChild(row);
+    });
+  }
+
   function openVendorDetail(nome, allEntries){
     const entriesDoVendedor = allEntries.filter(e => e.vendedor === nome);
     const s = computeSummaryFromEntries(entriesDoVendedor);
@@ -1259,6 +1418,7 @@
     $("vd-total").textContent = fmtBRL(s.totalRevenue);
     $("vd-count").textContent = s.totalCount;
     $("vd-ticket").textContent = fmtBRLShort(s.totalCount ? s.totalRevenue/s.totalCount : 0);
+    renderListaVendas($("vd-lista-vendas"), entriesDoVendedor);
 
     rankRows($("vd-rank-tipo"), s.tipoCount, s.tipoRevenue);
     rankRows($("vd-rank-faixa"), s.faixaCount, null, {naturalOrder:true, showAll:true});
@@ -1272,6 +1432,33 @@
   }
   $("btn-vendor-detail-close").addEventListener("click", ()=>{
     $("vendor-detail-overlay").classList.remove("show");
+  });
+
+  function openSegmentoDetail(segmento, allEntries){
+    const entriesDoSegmento = allEntries.filter(e => e.segmento === segmento);
+    const s = computeSummaryFromEntries(entriesDoSegmento);
+
+    $("sd-name").textContent = segmento;
+    $("sd-total").textContent = fmtBRL(s.totalRevenue);
+    $("sd-count").textContent = s.totalCount;
+    $("sd-ticket").textContent = fmtBRLShort(s.totalCount ? s.totalRevenue/s.totalCount : 0);
+    renderListaVendas($("sd-lista-vendas"), entriesDoSegmento);
+
+    rankRows($("sd-rank-vendedor"), s.vendedorCount, s.vendedorRevenue);
+    rankRows($("sd-rank-tipo"), s.tipoCount, s.tipoRevenue);
+    rankRows($("sd-rank-faixa"), s.faixaCount, null, {naturalOrder:true, showAll:true});
+    rankRows($("sd-rank-origem"), s.oriCount, s.oriRevenue);
+    rankRows($("sd-rank-produto"), s.prodCount, s.prodRevenue);
+    rankRows($("sd-rank-presencial"), s.presencialCount, s.presencialRevenue);
+    rankRows($("sd-rank-estado"), s.estadoCount, s.estadoRevenue);
+
+    $("segmento-detail-overlay").classList.add("show");
+  }
+  $("btn-segmento-detail-close").addEventListener("click", ()=>{
+    $("segmento-detail-overlay").classList.remove("show");
+  });
+  $("segmento-detail-overlay").addEventListener("click", (e)=>{
+    if(e.target.id === "segmento-detail-overlay") $("segmento-detail-overlay").classList.remove("show");
   });
 
   function formatarSecaoTexto(countMap, revenueMap, opts){
@@ -1515,19 +1702,25 @@
     // tenta gravar na planilha (com tentativas automáticas)
     const ok = await saveEntryRemote(entry);
 
-    if(!ok){
-      // rede de segurança: só baixa o CSV quando a planilha realmente falhou
-      downloadCSV(entriesToCSV([entry]), "venda-" + (entry.pedido || "backup") + "-" + todayIsoCompact() + ".csv");
-    }
-
     $("review-overlay").classList.remove("show");
-    lastVendorName = entry.vendedor;
-    showStamp(entry, !ok);
+    $("btn-review-send").disabled = false;
+    $("btn-review-send").textContent = "Enviar";
+
+    if(ok){
+      lastVendorName = entry.vendedor;
+      showSuccessStamp(entry);
+    } else {
+      showFailureStamp(entry);
+    }
   });
 
-  function showStamp(entry, showCsvNote){
+  function showSuccessStamp(entry){
+    const box = $("stamp-box");
+    box.classList.remove("fail");
+    $("stamp-title").textContent = "VENDA FECHADA";
     $("stamp-detail").textContent = entry.pedido + " · " + fmtBRL(entry.valor);
-    $("stamp-note").style.display = showCsvNote ? "block" : "none";
+    $("stamp-note").style.display = "none";
+    $("btn-stamp-ok").style.display = "none";
     const overlay = $("confirm-overlay");
     overlay.classList.add("show");
     setTimeout(()=>{
@@ -1535,6 +1728,21 @@
       resetForm();
     }, 1300);
   }
+
+  function showFailureStamp(entry){
+    const box = $("stamp-box");
+    box.classList.add("fail");
+    $("stamp-title").textContent = "⚠️ NÃO FOI SALVA";
+    $("stamp-detail").textContent = entry.pedido + " · " + fmtBRL(entry.valor);
+    $("stamp-note").textContent = "Sem conexão com a planilha. Os dados continuam preenchidos no formulário — toque em \"Fechar venda\" de novo assim que tiver sinal.";
+    $("stamp-note").style.display = "block";
+    $("btn-stamp-ok").style.display = "inline-block";
+    $("confirm-overlay").classList.add("show");
+    // NÃO reseta o formulário: os dados ficam preenchidos para nova tentativa manual
+  }
+  $("btn-stamp-ok").addEventListener("click", ()=>{
+    $("confirm-overlay").classList.remove("show");
+  });
 
   function resetForm(){
     $("pedido").value = "";
@@ -1627,6 +1835,7 @@
     $("stat-ticket").textContent = fmtBRLShort(summary.totalCount ? summary.totalRevenue/summary.totalCount : 0);
 
     renderTrendChart($("chart-trend"), computeTrendBuckets(entries, periodoSelecionado));
+    renderDuplicadas(entries);
 
     const topVendedor = rankRows($("rank-vendedor"), summary.vendedorCount, summary.vendedorRevenue, { onClick: (nome) => openVendorDetail(nome, entries) });
     const champVendedorEl = $("champ-vendedor");
@@ -1639,7 +1848,7 @@
 
     rankRows($("rank-tipo"), summary.tipoCount, summary.tipoRevenue);
 
-    const topSeg = rankRows($("rank-segmento"), summary.segCount, summary.segRevenue);
+    const topSeg = rankRows($("rank-segmento"), summary.segCount, summary.segRevenue, { onClick: (seg) => openSegmentoDetail(seg, entries) });
     const champEl = $("champ-segmento");
     if(topSeg){
       champEl.style.display = "flex";
@@ -1683,7 +1892,7 @@
     const capacityEl = $("alert-capacity");
     if(!isConfigured()){
       capacityEl.style.display = "block";
-      capacityEl.textContent = "⚙️ A planilha ainda não foi conectada (veja o guia de configuração). Por enquanto, cada venda só é salva no CSV baixado no celular.";
+      capacityEl.textContent = "⚙️ A planilha ainda não foi conectada (veja o guia de configuração). Por enquanto, nenhuma venda está sendo salva de verdade.";
     } else {
       capacityEl.style.display = "none";
     }
