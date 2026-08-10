@@ -279,6 +279,13 @@
     padding:20px;
   }
   #segmento-detail-overlay.show{opacity:1;pointer-events:auto;}
+  #presencial-detail-overlay{
+    position:fixed;inset:0;background:rgba(27,31,35,0.92);
+    display:flex;align-items:center;justify-content:center;
+    z-index:45;opacity:0;pointer-events:none;transition:opacity .18s ease;
+    padding:20px;
+  }
+  #presencial-detail-overlay.show{opacity:1;pointer-events:auto;}
   #conferencia-overlay{
     position:fixed;inset:0;background:rgba(27,31,35,0.92);
     display:flex;align-items:center;justify-content:center;
@@ -785,6 +792,55 @@
 
       <div class="btn-row" style="margin-top:16px;">
         <button type="button" class="btn-primary" id="btn-segmento-detail-close" style="box-shadow:none;">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="presencial-detail-overlay">
+    <div class="card review-card">
+      <div class="section-label" id="pd-name">Presencial</div>
+
+      <div class="stat-grid" style="margin-bottom:16px;">
+        <div class="stat-card wide">
+          <div class="label">Faturamento total</div>
+          <div class="value" id="pd-total">R$ 0,00</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Vendas</div>
+          <div class="value" id="pd-count">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Ticket médio</div>
+          <div class="value" id="pd-ticket">R$ 0</div>
+        </div>
+      </div>
+
+      <div class="section-label">Clientes novos x recorrentes</div>
+      <div id="pd-rank-tipo"></div>
+
+      <div class="section-label" style="margin-top:14px;">Vendas</div>
+      <div id="pd-lista-vendas" style="margin-bottom:0;"></div>
+
+      <div class="section-label" style="margin-top:14px;">Faturamento por vendedor</div>
+      <div id="pd-rank-vendedor"></div>
+
+      <div class="section-label" style="margin-top:14px;">Faixa de valor</div>
+      <div id="pd-rank-faixa"></div>
+
+      <div class="section-label" style="margin-top:14px;">Segmento</div>
+      <div id="pd-rank-segmento"></div>
+
+      <div class="section-label" style="margin-top:14px;">Origem</div>
+      <div id="pd-rank-origem"></div>
+
+      <div class="section-label" style="margin-top:14px;">Produto</div>
+      <div id="pd-rank-produto"></div>
+
+      <div class="section-label" style="margin-top:14px;">Estado</div>
+      <div id="pd-rank-estado"></div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button type="button" class="btn-primary" id="btn-presencial-detail-close" style="box-shadow:none;">Fechar</button>
       </div>
     </div>
   </div>
@@ -1461,6 +1517,33 @@
     if(e.target.id === "segmento-detail-overlay") $("segmento-detail-overlay").classList.remove("show");
   });
 
+  function openPresencialDetail(valor, allEntries){
+    const entriesDoPresencial = allEntries.filter(e => e.presencial === valor);
+    const s = computeSummaryFromEntries(entriesDoPresencial);
+
+    $("pd-name").textContent = valor;
+    $("pd-total").textContent = fmtBRL(s.totalRevenue);
+    $("pd-count").textContent = s.totalCount;
+    $("pd-ticket").textContent = fmtBRLShort(s.totalCount ? s.totalRevenue/s.totalCount : 0);
+    renderListaVendas($("pd-lista-vendas"), entriesDoPresencial);
+
+    rankRows($("pd-rank-tipo"), s.tipoCount, s.tipoRevenue);
+    rankRows($("pd-rank-vendedor"), s.vendedorCount, s.vendedorRevenue);
+    rankRows($("pd-rank-faixa"), s.faixaCount, null, {naturalOrder:true, showAll:true});
+    rankRows($("pd-rank-segmento"), s.segCount, s.segRevenue);
+    rankRows($("pd-rank-origem"), s.oriCount, s.oriRevenue);
+    rankRows($("pd-rank-produto"), s.prodCount, s.prodRevenue);
+    rankRows($("pd-rank-estado"), s.estadoCount, s.estadoRevenue);
+
+    $("presencial-detail-overlay").classList.add("show");
+  }
+  $("btn-presencial-detail-close").addEventListener("click", ()=>{
+    $("presencial-detail-overlay").classList.remove("show");
+  });
+  $("presencial-detail-overlay").addEventListener("click", (e)=>{
+    if(e.target.id === "presencial-detail-overlay") $("presencial-detail-overlay").classList.remove("show");
+  });
+
   function formatarSecaoTexto(countMap, revenueMap, opts){
     opts = opts || {};
     const showRevenue = !!revenueMap;
@@ -1860,7 +1943,7 @@
     rankRows($("rank-produto"), summary.prodCount, summary.prodRevenue);
     rankRows($("rank-faixa"), summary.faixaCount, null, {naturalOrder:true, showAll:true});
     rankRows($("rank-estado"), summary.estadoCount, summary.estadoRevenue);
-    rankRows($("rank-presencial"), summary.presencialCount, summary.presencialRevenue);
+    rankRows($("rank-presencial"), summary.presencialCount, summary.presencialRevenue, { onClick: (valor) => openPresencialDetail(valor, entries) });
 
     const recentEl = $("recent-list");
     recentEl.innerHTML = "";
